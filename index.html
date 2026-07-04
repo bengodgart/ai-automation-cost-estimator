@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Automation Cost Estimator</title>
+<style>
+  :root{
+    --bg:#0f172a; --surface:#1e293b; --surface2:#243349; --line:#334155;
+    --text:#e2e8f0; --muted:#94a3b8; --accent:#38bdf8;
+    --green:#22c55e; --red:#ef4444; --orange:#f59e0b;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.55;}
+  .wrap{max-width:760px;margin:0 auto;padding:28px 18px 72px;}
+  h1{font-size:1.6rem;margin:0 0 2px;letter-spacing:-.02em;}
+  .tagline{color:var(--muted);margin:0 0 22px;font-size:.98rem;}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0;}
+  label{display:block;font-size:.86rem;color:var(--muted);margin:0 0 4px;}
+  .field{margin:12px 0;}
+  input[type=number],select{width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 11px;font-size:1rem;}
+  input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px;}
+  .row{display:flex;gap:14px;flex-wrap:wrap;}
+  .row .field{flex:1;min-width:150px;}
+  .seg{display:flex;gap:6px;flex-wrap:wrap;}
+  .seg button{flex:1;min-width:80px;background:var(--surface2);border:1px solid var(--line);color:var(--text);padding:9px 6px;border-radius:8px;cursor:pointer;font-size:.92rem;}
+  .seg button[aria-pressed=true]{background:var(--accent);color:#0f172a;border-color:var(--accent);font-weight:700;}
+  details{margin-top:8px;}
+  summary{cursor:pointer;color:var(--accent);font-size:.88rem;}
+  .out{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;margin:16px 0;}
+  .total{font-size:2.1rem;font-weight:700;color:#fff;}
+  .total small{font-size:.9rem;color:var(--muted);font-weight:400;}
+  .breakdown{display:flex;gap:18px;flex-wrap:wrap;margin:12px 0;}
+  .breakdown div{font-size:.9rem;}
+  .breakdown b{color:#fff;font-size:1.05rem;display:block;}
+  .compare-note{background:var(--surface2);border-left:3px solid var(--accent);border-radius:8px;padding:10px 14px;margin-top:12px;font-size:.95rem;}
+  .compare-note b{color:var(--accent);}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:.9rem;}
+  td,th{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;}
+  th{color:var(--muted);font-size:.76rem;text-transform:uppercase;}
+  td.num{text-align:right;font-variant-numeric:tabular-nums;}
+  .barcell{width:45%;}
+  .bar{height:12px;background:var(--surface2);border-radius:6px;overflow:hidden;}
+  .fill{height:100%;background:var(--accent);}
+  .cheapest td{color:var(--green);font-weight:600;}
+  .alert{background:rgba(239,68,68,.12);border:1px solid var(--red);color:#fecaca;border-radius:8px;padding:10px 14px;margin:12px 0;font-size:.9rem;}
+  .alert ul{margin:6px 0 0;padding-left:20px;}
+  button.copy{background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px 14px;cursor:pointer;font-size:.9rem;margin-top:10px;}
+  button.copy:hover{border-color:var(--accent);}
+  .sources{color:var(--muted);font-size:.8rem;margin-top:26px;border-top:1px solid var(--line);padding-top:14px;}
+  .sources a{color:var(--accent);}
+  a{color:var(--accent);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AI Automation Cost Estimator</h1>
+  <p class="tagline">See what an automation will actually cost per month before you build it, across Zapier, Make, n8n, and calling the API directly. Nothing is stored; everything runs in your browser.</p>
+
+  <div class="card">
+    <div class="field">
+      <label>Platform</label>
+      <div class="seg" id="platform" role="group" aria-label="Platform">
+        <button type="button" data-platform="zapier" aria-pressed="true">Zapier</button>
+        <button type="button" data-platform="make" aria-pressed="false">Make</button>
+        <button type="button" data-platform="n8n" aria-pressed="false">n8n</button>
+        <button type="button" data-platform="raw" aria-pressed="false">Raw API</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="steps">Steps per run</label>
+        <input type="number" id="steps" value="4" min="0" step="1">
+      </div>
+      <div class="field">
+        <label for="llmSteps">Of those, LLM steps</label>
+        <input type="number" id="llmSteps" value="1" min="0" step="1">
+      </div>
+      <div class="field">
+        <label for="runs">Runs per month</label>
+        <input type="number" id="runs" value="1000" min="0" step="1">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="model">LLM model</label>
+        <select id="model"></select>
+      </div>
+      <div class="field">
+        <label for="inTokens">Input tokens per LLM call</label>
+        <input type="number" id="inTokens" value="1000" min="0" step="50">
+      </div>
+      <div class="field">
+        <label for="outTokens">Output tokens per LLM call</label>
+        <input type="number" id="outTokens" value="500" min="0" step="50">
+      </div>
+    </div>
+
+    <details>
+      <summary>Adjust the rates to match your plan</summary>
+      <div class="row" style="margin-top:10px">
+        <div class="field">
+          <label for="perUnit">Platform price per <span id="unitName">task</span> (USD)</label>
+          <input type="number" id="perUnit" value="0.0173" min="0" step="0.0001">
+        </div>
+        <div class="field">
+          <label for="inRate">Model input price per 1M tokens (USD)</label>
+          <input type="number" id="inRate" value="3" min="0" step="0.01">
+        </div>
+        <div class="field">
+          <label for="outRate">Model output price per 1M tokens (USD)</label>
+          <input type="number" id="outRate" value="15" min="0" step="0.01">
+        </div>
+      </div>
+      <p style="color:var(--muted);font-size:.8rem;margin:4px 0 0">Rates change often. These default to representative July 2026 figures. Check the sources below against your own plan.</p>
+    </details>
+  </div>
+
+  <div id="alert"></div>
+
+  <div class="out" id="out"></div>
+
+  <div class="card">
+    <label style="margin-bottom:8px">Same automation across every platform (monthly total)</label>
+    <table id="compare"><tbody></tbody></table>
+  </div>
+
+  <button class="copy" id="copyBtn" type="button">Copy a summary</button>
+
+  <div class="sources">
+    Estimates only, not a quote. Platform billing (tasks, operations, executions) and model token prices change frequently and vary by plan. Verify against:
+    <a href="https://zapier.com/pricing" target="_blank" rel="noopener">Zapier pricing</a>,
+    <a href="https://www.make.com/en/pricing" target="_blank" rel="noopener">Make pricing</a>,
+    <a href="https://n8n.io/pricing/" target="_blank" rel="noopener">n8n pricing</a>,
+    and your model provider's pricing page. Checked July 2026.
+  </div>
+</div>
+
+<script src="calc.js"></script>
+<script>
+  var state = { platform: "zapier" };
+
+  // populate model dropdown
+  var modelSel = document.getElementById("model");
+  Object.keys(CostCalc.MODEL_DEFAULTS).forEach(function (key) {
+    var m = CostCalc.MODEL_DEFAULTS[key];
+    var opt = document.createElement("option");
+    opt.value = key; opt.textContent = m.label;
+    if (key === "claude-sonnet") opt.selected = true;
+    modelSel.appendChild(opt);
+  });
+
+  function fmt(n) {
+    return "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function readInputs() {
+    return {
+      platform: state.platform,
+      steps: document.getElementById("steps").value,
+      llmSteps: document.getElementById("llmSteps").value,
+      runs: document.getElementById("runs").value,
+      model: modelSel.value,
+      inTokens: document.getElementById("inTokens").value,
+      outTokens: document.getElementById("outTokens").value,
+      perUnit: state.platform === "raw" ? 0 : document.getElementById("perUnit").value,
+      modelInRate: document.getElementById("inRate").value,
+      modelOutRate: document.getElementById("outRate").value,
+    };
+  }
+
+  function setModelRateFields() {
+    var m = CostCalc.MODEL_DEFAULTS[modelSel.value];
+    if (m) {
+      document.getElementById("inRate").value = m.in;
+      document.getElementById("outRate").value = m.out;
+    }
+  }
+
+  function setPlatformDefaults() {
+    var def = CostCalc.PLATFORM_DEFAULTS[state.platform];
+    document.getElementById("unitName").textContent = def.unit === "none" ? "unit" : def.unit;
+    document.getElementById("perUnit").value = def.perUnit;
+  }
+
+  var lastSummary = "";
+
+  function render() {
+    var inputs = readInputs();
+    var r = CostCalc.estimate(inputs);
+    var alertBox = document.getElementById("alert");
+    var out = document.getElementById("out");
+
+    if (r.errors && r.errors.length) {
+      alertBox.innerHTML = "<div class='alert'>Please fix:<ul>" +
+        r.errors.map(function (e) { return "<li>" + e + "</li>"; }).join("") + "</ul></div>";
+      out.innerHTML = "";
+      return;
+    }
+    alertBox.innerHTML = "";
+
+    var platformLabel = state.platform === "raw" ? "Raw API" : state.platform;
+    var note = "";
+    if (state.platform !== "raw") {
+      note = "<div class='compare-note'>Calling the API directly would cost <b>" + fmt(r.rawApiTotal) +
+        "</b> per month. You are paying <b>" + fmt(r.platformOverhead) + "</b> to " + platformLabel + " for the orchestration.</div>";
+    } else {
+      note = "<div class='compare-note'>This is the model token cost with no platform fee on top.</div>";
+    }
+
+    out.innerHTML =
+      "<div class='total'>" + fmt(r.total) + " <small>per month on " + platformLabel + "</small></div>" +
+      "<div class='breakdown'>" +
+        "<div>Platform orchestration<b>" + fmt(r.orchestration) + "</b>" + (r.units ? r.units.toLocaleString() + " " + r.unit + "s" : "no platform fee") + "</div>" +
+        "<div>LLM token cost<b>" + fmt(r.tokenCost) + "</b>your model key</div>" +
+      "</div>" + note;
+
+    renderCompare(inputs);
+
+    lastSummary = "AI automation cost estimate (" + platformLabel + "): " + fmt(r.total) + "/month. " +
+      "Orchestration " + fmt(r.orchestration) + ", token cost " + fmt(r.tokenCost) + ". " +
+      "Raw API direct would be " + fmt(r.rawApiTotal) + "/month.";
+  }
+
+  function renderCompare(inputs) {
+    var all = CostCalc.estimateAll(inputs);
+    var order = ["zapier", "make", "n8n", "raw"];
+    var labels = { zapier: "Zapier", make: "Make", n8n: "n8n", raw: "Raw API" };
+    var totals = order.map(function (p) { return all[p].errors && all[p].errors.length ? null : all[p].total; });
+    var valid = totals.filter(function (t) { return t != null; });
+    var max = Math.max.apply(null, valid.concat([0.01]));
+    var min = Math.min.apply(null, valid);
+
+    var rows = order.map(function (p) {
+      var r = all[p];
+      if (r.errors && r.errors.length) return "";
+      var pct = max > 0 ? (r.total / max) * 100 : 0;
+      var cheap = r.total === min ? " class='cheapest'" : "";
+      return "<tr" + cheap + "><td>" + labels[p] + "</td>" +
+        "<td class='barcell'><div class='bar'><div class='fill' style='width:" + pct.toFixed(0) + "%'></div></div></td>" +
+        "<td class='num'>" + fmt(r.total) + "</td></tr>";
+    }).join("");
+    document.querySelector("#compare tbody").innerHTML =
+      "<tr><th>Platform</th><th></th><th class='num'>Monthly total</th></tr>" + rows;
+  }
+
+  // wire events
+  document.getElementById("platform").addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-platform]");
+    if (!btn) return;
+    state.platform = btn.getAttribute("data-platform");
+    Array.prototype.forEach.call(this.querySelectorAll("button"), function (b) {
+      b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+    });
+    setPlatformDefaults();
+    render();
+  });
+
+  modelSel.addEventListener("change", function () { setModelRateFields(); render(); });
+  ["steps", "llmSteps", "runs", "inTokens", "outTokens", "perUnit", "inRate", "outRate"].forEach(function (id) {
+    document.getElementById(id).addEventListener("input", render);
+  });
+
+  document.getElementById("copyBtn").addEventListener("click", function () {
+    var btn = this;
+    navigator.clipboard.writeText(lastSummary).then(function () {
+      btn.textContent = "Copied";
+      setTimeout(function () { btn.textContent = "Copy a summary"; }, 1500);
+    });
+  });
+
+  setPlatformDefaults();
+  setModelRateFields();
+  render();
+</script>
+</body>
+</html>
