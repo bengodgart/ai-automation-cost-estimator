@@ -9,7 +9,7 @@ live_url: https://bengodgart.github.io/ai-automation-cost-estimator/
 pricing: 'Free. MIT licensed, no signup.'
 generated:
   by: claude-opus-5
-  at: '2026-07-29T04:24:12+00:00'
+  at: '2026-07-29T04:31:42+00:00'
 status: stable
 resource: https://github.com/bengodgart/ai-automation-cost-estimator.git
 ---
